@@ -1,0 +1,8 @@
+conda:
+- numpy
+- pymc
+- pandas
+- scipy
+- scikit-learn
+- sympy
+- seaborn
