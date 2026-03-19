@@ -1,0 +1,131 @@
+\documentclass[10pt]{beamer}
+\usepackage{graphicx}
+\usepackage{pgfplots}
+\usepackage{tikz}
+\usepackage{tikz-qtree}
+\usepackage{forest}
+\usepackage{amsmath}
+\usetikzlibrary{arrows.meta}
+\usepackage{floatrow}
+\usetikzlibrary{shadows,calc}
+\setbeamertemplate{caption}{\raggedright\insertcaption\par}
+
+%% set up the drop shadow stuff
+\def\shadowshift{3pt,-3pt}
+\def\shadowradius{6pt}
+\colorlet{innercolor}{black!60}
+\colorlet{outercolor}{gray!05}
+% this draws a shadow under a rectangle node
+\newcommand\drawshadow[1]{
+	\begin{pgfonlayer}{shadow}
+		\shade[outercolor,inner color=innercolor,outer color=outercolor] ($(#1.south west)+(\shadowshift)+(\shadowradius/2,\shadowradius/2)$) circle (\shadowradius);
+		\shade[outercolor,inner color=innercolor,outer color=outercolor] ($(#1.north west)+(\shadowshift)+(\shadowradius/2,-\shadowradius/2)$) circle (\shadowradius);
+		\shade[outercolor,inner color=innercolor,outer color=outercolor] ($(#1.south east)+(\shadowshift)+(-\shadowradius/2,\shadowradius/2)$) circle (\shadowradius);
+		\shade[outercolor,inner color=innercolor,outer color=outercolor] ($(#1.north east)+(\shadowshift)+(-\shadowradius/2,-\shadowradius/2)$) circle (\shadowradius);
+		\shade[top color=innercolor,bottom color=outercolor] ($(#1.south west)+(\shadowshift)+(\shadowradius/2,-\shadowradius/2)$) rectangle ($(#1.south east)+(\shadowshift)+(-\shadowradius/2,\shadowradius/2)$);
+		\shade[left color=innercolor,right color=outercolor] ($(#1.south east)+(\shadowshift)+(-\shadowradius/2,\shadowradius/2)$) rectangle ($(#1.north east)+(\shadowshift)+(\shadowradius/2,-\shadowradius/2)$);
+		\shade[bottom color=innercolor,top color=outercolor] ($(#1.north west)+(\shadowshift)+(\shadowradius/2,-\shadowradius/2)$) rectangle ($(#1.north east)+(\shadowshift)+(-\shadowradius/2,\shadowradius/2)$);
+		\shade[outercolor,right color=innercolor,left color=outercolor] ($(#1.south west)+(\shadowshift)+(-\shadowradius/2,\shadowradius/2)$) rectangle ($(#1.north west)+(\shadowshift)+(\shadowradius/2,-\shadowradius/2)$);
+		\filldraw ($(#1.south west)+(\shadowshift)+(\shadowradius/2,\shadowradius/2)$) rectangle ($(#1.north east)+(\shadowshift)-(\shadowradius/2,\shadowradius/2)$);
+	\end{pgfonlayer}
+}
+
+% create a shadow layer, so that we don't need to worry about overdrawing other things
+\pgfdeclarelayer{shadow}
+\pgfsetlayers{shadow,main}
+
+\newsavebox\mybox
+\newlength\mylen
+
+\newcommand\shadowimage[2][]{%
+	\setbox0=\hbox{\includegraphics[#1]{#2}}
+	\setlength\mylen{\wd0}
+	\ifnum\mylen<\ht0
+	\setlength\mylen{\ht0}
+	\fi
+	\divide \mylen by 120
+	\def\shadowshift{\mylen,-\mylen}
+	\def\shadowradius{\the\dimexpr\mylen+\mylen+\mylen\relax}
+	\begin{tikzpicture}
+		\node[anchor=south west,inner sep=0] (image) at (0,0) {\includegraphics[#1]{#2}};
+		\drawshadow{image}
+\end{tikzpicture}}
+
+%% end the setup
+
+
+\usepackage{natbib}
+\usetheme{Darmstadt}
+\setbeamertemplate{navigation symbols}{}
+
+\title{The Bias-Variance Tradeoff, Mathematically Speaking}
+%\subtitle{Ancient people were so weird!}
+\date[2026/03/21]{March 21, 2026}
+\author[Rick Morris]{Rick Morris}
+
+\begin{document}
+	\section{Preamble}
+		\begin{frame}
+			\titlepage
+		\end{frame}
+		\begin{frame}{Na\"ive overview}
+			\textbf{Bias} refers to the errors a model makes, usually because it is too simple. \vspace{.5cm}
+			
+			\textbf{Variance} refers to the model's sensitivity to its training data: how much do its predictions change for a given test set, given possible training data sets? \vspace{.5cm}
+			
+			A \textbf{model} refers to an architecture which can be trained via learning algorithm, not a specific set of weights. In other words, a model here is a \textbf{hypothesis space}, not a specific hypothesis. \vspace{.5cm}
+			
+			The \textbf{tradeoff}: as a model's complexity increases, it becomes better able to fit the training data (reduce its \textit{bias}), including the training data's noise. This means that the \textit{variance} (expected test set error) will increase. The model will have a harder time \textit{generalizing} We can reduce model complexity so that is less sensitivity to training data changes, but then it will be more likely to make mistakes on the given training data and, therefore, a harder time learning the relationship between features and outputs.
+		\end{frame}
+	\section{The math}
+		\begin{frame}{The data-generating process}
+			For a given set of features $X$ and a target $Y$, we assume that they are related by a true function $f(X)$ and an error term $\epsilon\sim\mathcal{N}(0, \epsilon^2)$ s.t. $Y=f(x) + \epsilon$. \vspace{.5cm}
+			
+			A learning algorithm estimates $f(x)$ using a trained model $\hat{f}(x; D)$ with dataset $D\sim P(X, Y)$. 
+		\end{frame}
+		
+		\begin{frame}{The reducible error}
+			The goal here is to estimate the expected error for the model over all possible training datasets (in this case, the \textbf{Mean Squared Error}): $$\text{Err}(x) = \mathbb{E}_D[(Y - \hat{f}(x))^2] = \mathbb{E}_D[(f(x) + \epsilon - \hat{f}(x))^2]$$
+			
+			Again, $f(x)$ is the true function and $\hat{f}(x)$ is the trained model. After expanding $\text{Err}(x)$, canceling out the cross term, and removing the irreducible error $\mathbb{E}[\epsilon^2]$, we are left with the reducible error $\mathbb{E}_D[(f(x) - \hat{f}(x))^2]$. \vspace{.5cm}
+			
+			We introduce the expected prediction of the model given training on infinite possible datasets $\mathbb{E}[\hat{f}(x)]$ and add and subtract it in the reducible error $\text{Err}_r(x)$ to get: $$\text{Err}_r(x) = \mathbb{E}_D[(f(x) + \mathbb{E}[\hat{f}(x)] - \mathbb{E}[\hat{f}(x)] - \hat{f}(x))^2]$$
+		\end{frame}
+		\begin{frame}{Decomposing the reducible error}
+			After we expand the square and eliminate the cross term, we get a decomposition into two terms:
+			\begin{itemize}
+				\item \textbf{Squared bias}: $\mathbb{E}_D[(f(x) - \mathbb{E}[\hat{f}(x)])^2]$
+				\item \textbf{Variance}: $\mathbb{E}_D[(\mathbb{E}[\hat{f}(x)] - \hat{f}(x))^2]$
+			\end{itemize}
+		\end{frame}
+		\begin{frame}{Squared bias term}
+			Again, we have the \textbf{Squared bias}: $\mathbb{E}_D[(f(x) - \mathbb{E}[\hat{f}(x)])^2]$. \vspace{.5cm}
+			
+			\textbf{Comments}: note that this is the expected squared difference between the true function $f(x)$ and the expected model prediction $\mathbb{E}[\hat{f}(x)]$. Both of these are constant with respect to the actual dataset $D$ chosen, so it can be simplified further to $(f(x) - \mathbb{E}[\hat{f}(x)])^2$. \vspace{.5cm}
+			
+			We can see, therefore, that this term does not depend on the particular dataset upon which the model was trained; a model's squared bias is defined by assuming it is trained across infinite possible datasets. So the squared bias measures the model's error not due to choice of training data.
+		\end{frame}
+		\begin{frame}{Variance term}
+			Again, we have the \textbf{Variance}: $\mathbb{E}_D[(\mathbb{E}[\hat{f}(x)] - \hat{f}(x))^2]$. \vspace{.5cm}
+			
+			\textbf{Comments}: We can see that this is just the expected squared difference between the expected model prediction $\mathbb{E}[\hat{f}(x)]$ and each given model prediction $\hat{f}(x)$, which is the textbook definition of the variance for the random variable $\hat{f}(x)$. \vspace{.5cm}
+			
+			We can see here how this will cause model's estimated error to depend on the specific training dataset $D$, so the variance measures the model's sensitivity to choice of training data.
+		\end{frame}
+		\begin{frame}{Summary}
+			\begin{itemize}
+				\item We can reduce squared bias by increasing model complexity; if it were trained on infinite data, it would perfectly memorize the actual distribution to the extent the model architecture was capable of doing so. By making the model more complex, it becomes more capable of memorizing the infinite training data.
+				\item Variance, on the other hand, is reduced by making the model less sensitive to noise in the training data, i.e. making it \textit{less} capable of memorizing a specific $D$ and, therefore, less complex.
+			\end{itemize}
+		\end{frame}
+	
+		\begin{frame}{Next time...}
+			\textbf{Ridge regression vs Lasso} 
+			
+			Questions? E-mail me: rmorris.code@gmail.com
+		\end{frame}
+	%	\begin{frame}{Questions?}
+		%		I'm very happy to hear from anyone reading this. If you have questions, challenges, comments, etc., feel free to email me: rmorris.home@gmail.com. 
+		%	\end{frame}
+	
+\end{document}
